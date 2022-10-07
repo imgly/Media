@@ -74,7 +74,7 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
                 controller.imageExportPreset = .compatible
 
                 controller.delegate = self
-                controller.modalPresentationStyle = .fullScreen
+                controller.modalPresentationStyle = .automatic
                 present(controller, animated: true, completion: nil)
             }
         }
