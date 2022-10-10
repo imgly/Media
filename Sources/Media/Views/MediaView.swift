@@ -95,15 +95,20 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
             complete(with: .failure(MediaError.imageNotAvailable), picker: picker)
             return
         }
+        let imageURL = info[.imageURL] as? URL
 
         DispatchQueue.global().async { [weak self] in
             do {
                 let url = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
                     .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension("jpg")
+                    .appendingPathExtension(imageURL?.pathExtension ?? "jpg")
 
-                let data = image.jpegData(compressionQuality: 1)
-                try data?.write(to: url)
+                if let imageURL = imageURL {
+                    try FileManager.default.moveItem(at: imageURL, to: url)
+                } else {
+                    let data = image.jpegData(compressionQuality: 1)
+                    try data?.write(to: url)
+                }
 
                 self?.complete(with: .success(url), picker: picker)
             } catch {
