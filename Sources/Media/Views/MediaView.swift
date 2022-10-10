@@ -38,7 +38,7 @@ internal struct MediaView: UIViewControllerRepresentable {
 
 }
 
-final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UIImagePickerControllerDelegate, UIAdaptivePresentationControllerDelegate {
 
     fileprivate var isPresented: Binding<Bool>
     fileprivate var source: UIImagePickerController.SourceType
@@ -74,10 +74,15 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
                 controller.imageExportPreset = .compatible
 
                 controller.delegate = self
+                controller.presentationController?.delegate = self
                 controller.modalPresentationStyle = .automatic
                 present(controller, animated: true, completion: nil)
             }
         }
+    }
+
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        isPresented.wrappedValue = false
     }
 
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
