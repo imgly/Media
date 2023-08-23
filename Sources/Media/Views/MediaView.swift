@@ -3,7 +3,7 @@ import SwiftUI
 import CoreServices
 import Photos
 
-public typealias MediaCompletion = (Result<URL, Error>) -> Void
+public typealias MediaCompletion = (Result<(URL, MediaType), Error>) -> Void
 
 public enum MediaError: LocalizedError {
     case imageNotAvailable
@@ -125,7 +125,7 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
                     } catch {
                         try FileManager.default.copyItem(at: videoURL, to: url)
                     }
-                    self?.complete(with: .success(url), picker: picker)
+                    self?.complete(with: .success((url, MediaType.movie)), picker: picker)
                 } catch {
                     self?.complete(with: .failure(error), picker: picker)
                 }
@@ -147,14 +147,14 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
                     try data?.write(to: url)
                 }
 
-                self?.complete(with: .success(url), picker: picker)
+                self?.complete(with: .success((url, MediaType.image)), picker: picker)
             } catch {
                 self?.complete(with: .failure(error), picker: picker)
             }
         }
     }
 
-    private func complete(with result: Result<URL, Error>, picker: UIImagePickerController) {
+    private func complete(with result: Result<(URL, MediaType), Error>, picker: UIImagePickerController) {
         DispatchQueue.main.async {
             self.isPresented.wrappedValue = false
             picker.presentingViewController?.dismiss(animated: true) {
