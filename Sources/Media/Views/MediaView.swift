@@ -19,19 +19,33 @@ public enum MediaError: LocalizedError {
     }
 }
 
+public enum MediaType {
+    case image
+    case movie
+
+    var identifier: String {
+        switch self {
+        case .image: return String(kUTTypeImage)
+        case .movie: return String(kUTTypeMovie)
+        }
+    }
+}
+
 internal struct MediaView: UIViewControllerRepresentable {
 
     @Binding var isPresented: Bool
     let source: UIImagePickerController.SourceType
+    let media: [MediaType]
     let completion: MediaCompletion
 
     func makeUIViewController(context: Context) -> CameraWrapper {
-        CameraWrapper(isPresented: $isPresented, source: source, completion: completion)
+        CameraWrapper(isPresented: $isPresented, source: source, media: media, completion: completion)
     }
 
     func updateUIViewController(_ controller: CameraWrapper, context: Context) {
         controller.isPresented = $isPresented
         controller.source = source
+        controller.media = media
         controller.completion = completion
         controller.updateState()
     }
@@ -42,11 +56,13 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
 
     fileprivate var isPresented: Binding<Bool>
     fileprivate var source: UIImagePickerController.SourceType
+    fileprivate var media: [MediaType]
     fileprivate var completion: MediaCompletion
 
-    init(isPresented: Binding<Bool>, source: UIImagePickerController.SourceType, completion: @escaping MediaCompletion) {
+    init(isPresented: Binding<Bool>, source: UIImagePickerController.SourceType, media: [MediaType], completion: @escaping MediaCompletion) {
         self.isPresented = isPresented
         self.source = source
+        self.media = media
         self.completion = completion
 
         super.init(nibName: nil, bundle: nil)
@@ -70,8 +86,9 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
                 let controller = UIImagePickerController()
 
                 controller.sourceType = source
-                controller.mediaTypes = [String(kUTTypeImage)]
+                controller.mediaTypes = media.map(\.identifier)
                 controller.imageExportPreset = .compatible
+                controller.videoExportPreset = AVAssetExportPresetPassthrough
 
                 controller.delegate = self
                 controller.presentationController?.delegate = self
@@ -92,7 +109,27 @@ final class CameraWrapper: UIViewController, UINavigationControllerDelegate, UII
 
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         guard let image = info[.originalImage] as? UIImage else {
-            complete(with: .failure(MediaError.imageNotAvailable), picker: picker)
+            guard let videoURL = info[.mediaURL] as? URL else {
+                complete(with: .failure(MediaError.imageNotAvailable), picker: picker)
+                return
+            }
+
+            DispatchQueue.global().async { [weak self] in
+                do {
+                    let url = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension(videoURL.pathExtension)
+
+                    do {
+                        try FileManager.default.moveItem(at: videoURL, to: url)
+                    } catch {
+                        try FileManager.default.copyItem(at: videoURL, to: url)
+                    }
+                    self?.complete(with: .success(url), picker: picker)
+                } catch {
+                    self?.complete(with: .failure(error), picker: picker)
+                }
+            }
             return
         }
         let imageURL = info[.imageURL] as? URL
